@@ -24,9 +24,8 @@
 			<menuAssignment id="folderContextMenu" order="102"/>
 		</menuAssignments>
 
-		<enabledExpression></enabledExpression>
-
-		<filterExpression></filterExpression>
+		<enabledExpression>elvisContext.hasFilteredSelection()</enabledExpression>
+		<filterExpression>item.hasAssetDomain("image")</filterExpression>
 
 		<requiredPermissionMask>VP-------</requiredPermissionMask>
 

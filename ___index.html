@@ -1,0 +1,305 @@
+<html>
+<head>
+
+	<script src="${pluginsBaseRootUrl}/web.shared/jquery.js" type="text/javascript"></script>
+	<script src="${pluginsBaseRootUrl}/web.shared/jquery.class.js" type="text/javascript"></script>
+	<script src="${pluginsBaseRootUrl}/web.shared/jquery.cookie.js" type="text/javascript"></script>
+	<link  href="${pluginsBaseRootUrl}/web.shared/elvis_api/css/elvis.css" rel="stylesheet" type="text/css"/>
+	<script src="${pluginsBaseRootUrl}/web.shared/elvis_api/js/jquery.elvis.js" type="text/javascript"></script>
+
+
+	<!-- Ressource -->
+	<link  href="resources/jquery-ui-1.8.16.custom.css" rel="stylesheet" type="text/css"/>
+	<script src="resources/jquery-ui-1.8.16.custom.min.js" type="text/javascript"></script>
+	<script src="resources/jquery.iframe-transport.js" type="text/javascript"></script>
+	<script src="resources/jquery.fileupload.js" type="text/javascript"></script>
+	<link  href="resources/styles.css" rel="stylesheet" type="text/css"/>
+
+	<!-- UI toast -->
+	<link
+		type="text/css"
+		href="https://uicdn.toast.com/tui-color-picker/v2.2.3/tui-color-picker.css"
+		rel="stylesheet">
+	<link
+		type="text/css"
+		href="./tui.image-editor/dist/tui-image-editor.css"
+		rel="stylesheet">
+	<style>
+	  @import url(http://fonts.googleapis.com/css?family=Noto+Sans);
+	  html, body {
+	    height: 100%;
+	    margin: 0;
+	  }
+	  .tui-image-editor-container {
+	  	height: 600px !important;
+	  }
+	</style>
+
+	<!-- Custom Code Image Editor -->
+	<script type="text/javascript">
+		var elvisContext = ElvisPlugin.resolveElvisContext();
+		var elvisApi = new ElvisAPI("${serverUrl}");
+		var profile, refreshTimer, searchParams = null, currentContainerId = null;
+		var csrfToken = null;
+
+		$(document).ready(function() {
+			// Get CSRF TOKEN
+			
+			$.ajax({
+		    url: '${serverUrl}/services/login?username=woodwing&password=ww', 
+		    data: {
+
+		    },
+		    cache: false,
+		    contentType: false,
+		    processData: false,
+		    method: 'POST',
+		    type: 'POST', // For jQuery < 1.9
+		    success: function(response){
+		      console.log('response', response);
+		      csrfToken = response.csrfToken;
+		    }
+			});
+
+			// Get asset data
+			var urlAssetSelect = elvisContext.activeTab.assetSelection[0].originalUrl;
+			var folderPath = elvisContext.activeTab.assetSelection[0].folderPath;
+			$('form .folder-path').val(folderPath);
+
+
+			// Image editor
+			var nameFile = 'SampleImage';
+
+	    var imageEditor = new tui.ImageEditor('#tui-image-editor-container', {
+	      includeUI: {
+	        loadImage: {
+	          path: urlAssetSelect,
+	          name: nameFile
+	        },
+	        theme: blackTheme, // or whiteTheme
+	        initMenu: 'filter',
+	        menuBarPosition: 'bottom'
+	      },
+	      cssMaxWidth: 700,
+	      cssMaxHeight: 200,
+	      usageStatistics: false
+	    });
+
+	    // 
+	    window.onresize = function() {
+	      imageEditor.ui.resizeEditor();
+	    }
+
+	    // 
+	    $('.download-asset').click( function() {
+      	var dataURL = imageEditor.toDataURL()
+	    	var imageName = imageEditor.getImageName();
+
+				var block = dataURL.split(";");
+				var contentType = block[0].split(":")[1];
+
+	    	
+
+	    	if (window.saveAs) {
+	    		blob = b64toBlob(dataURL, contentType);
+	    		saveAs(blob, imageName);
+	    		console.log('windows');
+	    	} else {
+	    		console.log('windows no');
+
+	    		console.log('dataURL', dataURL);
+	    		var image = new Image();
+					image.src = dataURL;
+					console.log('image', image);
+					$('.preview').append(image);
+	    	}
+
+	    	var block = dataURL.split(";");
+				// Get the content type of the image
+				var contentType = block[0].split(":")[1];// In this case "image/gif"
+				// get the real base64 content of the file
+				var realData = block[1].split(",")[1];
+
+	    	blob = dataURLtoBlob(dataURL);
+
+	    	var file = new File([blob], 'mm-' + imageName, {type: contentType, lastModified: Date.now()});
+
+
+	    	// Upload file
+	    	var infoTimer, dropTimer;
+			  elvisApi.useAutoLogin("admin", "guest");
+
+			  if (!csrfToken) {
+          elvisApi.csrf(function(data, textStatus, jqXHR) {
+            csrfToken = data.csrfToken;
+            console.log('csrfToken 2', csrfToken);
+          });
+        }
+
+        var url = "${serverUrl}/services/create?X-CSRF-TOKEN=" + csrfToken + "&metadataToReturn=all&folderPath=" + folderPath + "&name=mm-filtred&assetType=png";
+        
+        var fd = new FormData(); 
+        fd.append('Filedata', file);
+
+        $.ajax({
+			    url: url, 
+			    data: fd,
+			    cache: false,
+			    contentType: false,
+			    processData: false,
+			    method: 'POST',
+			    type: 'POST', // For jQuery < 1.9
+			    success: function(response){
+			      console.log('response', response);
+            if (response != 0) { 
+              alert('file uploaded'); 
+            } 
+            else{ 
+              alert('file not uploaded'); 
+            } 
+			    },
+			    beforeSend: function(xhr) {
+          	console.log('xhr', xhr);
+	          xhr.setRequestHeader("X-CSRF-TOKEN", csrfToken);
+	        }
+				});
+
+        // $.ajax({ 
+        //   url: url, 
+        //   type: 'post', 
+        //   data: {
+        //   	Filedata: file
+        //   }, 
+        //   contentType: 'multipart/form-data', 
+        //   // processData: false, 
+        //   success: function(response){ 
+        //   	console.log('response', response);
+        //     if (response != 0) { 
+        //       alert('file uploaded'); 
+        //     } 
+        //     else{ 
+        //       alert('file not uploaded'); 
+        //     } 
+        //   },
+        //   beforeSend: function(xhr) {
+        //   	console.log('xhr', xhr);
+	       //    xhr.setRequestHeader("X-CSRF-TOKEN", postToken);
+	       //  }
+        // }); 
+
+
+	    	function dataURLtoBlob(dataURL) {
+				  // Decode the dataURL   
+			    var binary = atob(dataURL.split(',')[1]);
+			    // Create 8-bit unsigned array
+			    var array = [];
+			    for (var i = 0; i < binary.length; i++) {
+			        array.push(binary.charCodeAt(i));
+			    }
+			    // Return our Blob object
+			    return new Blob([new Uint8Array(array)], { type: 'image/png' });
+				}
+	    	
+
+      	function b64toBlob(b64Data, contentType, sliceSize) {
+	        contentType = contentType || '';
+	        sliceSize = sliceSize || 512;
+
+	        var byteCharacters = atob(b64Data);
+	        var byteArrays = [];
+
+	        for (var offset = 0; offset < byteCharacters.length; offset += sliceSize) {
+	            var slice = byteCharacters.slice(offset, offset + sliceSize);
+
+	            var byteNumbers = new Array(slice.length);
+	            for (var i = 0; i < slice.length; i++) {
+	                byteNumbers[i] = slice.charCodeAt(i);
+	            }
+
+	            var byteArray = new Uint8Array(byteNumbers);
+
+	            byteArrays.push(byteArray);
+	        }
+		      var blob = new Blob(byteArrays, {type: contentType});
+		      return blob;
+				}
+
+	    	
+	    	function saveBlobAsFile(blob, fileName) {
+
+			    var reader = new FileReader();
+
+			    reader.onloadend = function () {    
+		        var base64 = reader.result ;
+		        var link = document.createElement("a");
+
+		        link.setAttribute("href", base64);
+		        link.setAttribute("download", fileName);
+		        link.click();
+			    };
+
+			    reader.readAsDataURL(blob);
+				}
+
+	    });
+
+		});
+	</script>
+
+
+</head>
+<body>
+
+	<form
+		style="display: none" 
+		action="${serverUrl}/services/create"
+	 	method="post"
+	 	enctype="multipart/form-data">
+		<!-- <input type="hidden" name="nextUrl" value="...mypage.html#${id}"> -->
+		<input type="hidden" name="folderPath" value="/Upload Zone">
+		<label for="file">File </label>
+		<input type="file" name="Filedata" id="file">
+		<br><br>
+		<input type="submit" value="Create">
+	</form>
+
+	<hr>
+
+	<button class="download-asset">Save</button>
+	<div class="preview"style="border: solid 1px red"></div>
+
+	<form style="display: none" action="${serverUrl}/services/create" method="post" enctype="multipart/form-data">
+		<input type="hidden" name="folderPath" value="/DAMtube">
+		<label for="file">File </label>
+		<input type="file" name="Filedata" id="file">
+		<br><br>
+		<input type="submit" value="Create" id="but_upload">
+	</form>
+
+	<hr>
+
+	<div id="tui-image-editor-container"></div>
+
+  <script
+    type="text/javascript"
+    src="https://cdnjs.cloudflare.com/ajax/libs/fabric.js/3.3.2/fabric.js"></script>
+  <script
+    type="text/javascript"
+    src="https://uicdn.toast.com/tui.code-snippet/v1.5.0/tui-code-snippet.min.js"></script>
+  <script
+    type="text/javascript"
+    src="https://uicdn.toast.com/tui-color-picker/v2.2.3/tui-color-picker.js"></script>
+  <script
+    type="text/javascript"
+    src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/1.3.3/FileSaver.min.js"></script>
+  <script
+    type="text/javascript"
+    src="./tui.image-editor/dist/tui-image-editor.js"></script>
+  <script
+    type="text/javascript"
+    src="./tui.image-editor/examples/js/theme/white-theme.js"></script>
+  <script
+    type="text/javascript"
+    src="./tui.image-editor/examples/js/theme/black-theme.js"></script>
+</body>
+</html>
