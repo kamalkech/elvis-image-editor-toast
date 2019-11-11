@@ -45,9 +45,9 @@
 
 		<messages>
 			<entries locale="en_US">
-				<entry key="button.label">MM Image Editor Dialog</entry>
+				<entry key="button.label">MM Image Editor</entry>
 				<entry key="button.tooltip">MM Editor Image</entry>
-				<entry key="title">Action MM Image Editor Dialog</entry>
+				<entry key="title">Action MM Image Editor</entry>
 			</entries>
 		</messages>
 

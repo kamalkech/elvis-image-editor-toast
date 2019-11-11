@@ -9,11 +9,11 @@
 
 
 	<!-- Ressource -->
-	<!-- <link  href="resources/jquery-ui-1.8.16.custom.css" rel="stylesheet" type="text/css"/>
+	<link  href="resources/jquery-ui-1.8.16.custom.css" rel="stylesheet" type="text/css"/>
 	<script src="resources/jquery-ui-1.8.16.custom.min.js" type="text/javascript"></script>
 	<script src="resources/jquery.iframe-transport.js" type="text/javascript"></script>
 	<script src="resources/jquery.fileupload.js" type="text/javascript"></script>
-	<link  href="resources/styles.css" rel="stylesheet" type="text/css"/> -->
+	<link  href="resources/styles.css" rel="stylesheet" type="text/css"/>
 
 	<!-- UI toast -->
 	<link
@@ -41,9 +41,10 @@
 		var elvisApi = new ElvisAPI("${serverUrl}");
 		var csrfToken = null;
 
-		$(document).ready(function() {
-			console.log('elvisContext', elvisContext);
+		// var csrfToken = window.localStorage.getItem("elvis.csrfToken");
+		// console.log('localToken', localToken);
 
+		$(document).ready(function() {
 			// 1. Get CSRF TOKEN
 			$.ajax({
 		    url: '${serverUrl}/services/login?username=woodwing&password=ww', 
@@ -52,9 +53,10 @@
 		    contentType: false,
 		    processData: false,
 		    method: 'POST',
-		    type: 'POST',
+		    type: 'POST', // For jQuery < 1.9
 		    success: function(response){
-		      csrfToken = response.csrfToken;
+		      window.localStorage.setItem("elvis.csrfToken", response.csrfToken);
+		      csrfToken = response.csrfToken
 		    }
 			});
 
@@ -88,12 +90,13 @@
 	    // =============================================================================== //
 
 	    // 3. Save Assets filtered by Image Editor.
-	    $('.save-asset').click(function() {
+	    $('.save-asset').click( function() {
+
 	    	// 3.1 Get date asset from image editor.
       	var dataURL = imageEditor.toDataURL()
 	    	var imageName = imageEditor.getImageName();
 
-	    	var block = dataURL.split(";");
+				var block = dataURL.split(";");
 				var contentType = block[0].split(":")[1];
 
 				// 3.2 Get blob from asset data url.
@@ -102,11 +105,9 @@
 	    	var dateNow = Date.now();
 	    	var fileName = dateNow + '-' + imageName;
 	    	fileName = fileName.replace(/\s+/g, '-');
-	    	console.log('fileName', fileName);
 
 	    	// 3.3 Create file instance.
-	    	var file = new File([blob], fileName, {type: contentType, lastModified: dateNow});
-	    	console.log('file', file);
+	    	var file = new File([blob], fileName, {type: contentType, lastModified: Date.now()});
 
 	    	// 3.4. Upload file
 	    	var infoTimer, dropTimer;
@@ -116,12 +117,11 @@
 			  if (!csrfToken) {
           elvisApi.csrf(function(data, textStatus, jqXHR) {
             csrfToken = data.csrfToken;
-            console.log('csrfToken 2', csrfToken);
           });
         }
 
         // 3.4.2 Url to post data.
-        var url = "${serverUrl}/services/create?X-CSRF-TOKEN=" + csrfToken + "&metadataToReturn=all&folderPath=" + assetPath + "&name=" + fileName + "&assetType=" + contentType;
+        var url = "${serverUrl}/services/create?X-CSRF-TOKEN=" + csrfToken + "&metadataToReturn=all&folderPath=" + assetPath + "&name=" + fileName + "&assetType=png";
         
         // 3.4.3 Create form data instance.
         var fd = new FormData(); 
@@ -137,23 +137,24 @@
 			    method: 'POST',
 			    type: 'POST', // For jQuery < 1.9
 			    success: function(response){
-			      console.log('response: ', response);
+			      console.log('response', response);
             if (response != 0) { 
               alert('file uploaded'); 
             } 
             else{ 
-              console.log('response', response); 
+              alert('file not uploaded'); 
             } 
 			    },
 			    beforeSend: function(xhr) {
 	          xhr.setRequestHeader("X-CSRF-TOKEN", csrfToken);
 	        }
 				});
+
 	    });
 
 	    // =============================================================================== //
 	    
-	    // Convert data url to blob. 
+	    // Convert data url to blob.
 	    function dataURLtoBlob(dataURL) {
 			  // Decode the dataURL   
 		    var binary = atob(dataURL.split(',')[1]);
@@ -175,8 +176,6 @@
 
 	<button class="save-asset">Save</button>
 
-	<hr>
-
 	<div id="tui-image-editor-container"></div>
 
   <script
@@ -188,7 +187,7 @@
   <script
     type="text/javascript"
     src="https://uicdn.toast.com/tui-color-picker/v2.2.3/tui-color-picker.js"></script>
- <!--  <script
+<!--   <script
     type="text/javascript"
     src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/1.3.3/FileSaver.min.js"></script> -->
   <script
