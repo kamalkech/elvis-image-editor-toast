@@ -55,36 +55,46 @@
 	    opacity: 0.25;
 	    display: none;
 	  }
+	  .alert.alert-success{
+	  	position: absolute;
+	    z-index: 9999;
+	    left: 20%;
+	    top: 8px;
+	    display: none;
+	  }
+	  .icon {
+	  	font-size: 22px;
+	    float: left;
+	    margin-right: 5px;
+	  }
 	</style>
 
 	<!-- Custom Code Image Editor -->
 	<script type="text/javascript">
-		var elvisContext = ElvisPlugin.resolveElvisContext();
-		var elvisApi = new ElvisAPI("${serverUrl}");
-		var csrfToken = null;
+
 
 		$(document).ready(function() {
-			// 1. Get CSRF TOKEN
-			$.ajax({
-		    url: '${serverUrl}/services/login?username=woodwing&password=ww', 
-		    data: {},
-		    cache: false,
-		    contentType: false,
-		    processData: false,
-		    method: 'POST',
-		    type: 'POST', // For jQuery < 1.9
-		    success: function(response){
-		      csrfToken = response.csrfToken
-		    }
-			});
 
-			// 1.1 Get asset data
+			// 1. Get elvis api Object.
+	    var elvisApi = new ElvisAPI("${serverUrl}");
+
+	    // 1.1 Get CSRF TOKEN.
+		  var csrfToken;
+	    elvisApi.useAutoLogin("guest", "api_mm");
+		  if (!csrfToken) {
+        elvisApi.csrf(function(data, textStatus, jqXHR) {
+          csrfToken = data.csrfToken;
+        });
+      }
+
+			// 1.2 Get asset data
+			var elvisContext = ElvisPlugin.resolveElvisContext();
 			var assetUrl = elvisContext.activeTab.assetSelection[0].originalUrl;
 			var assetPath = elvisContext.activeTab.assetSelection[0].folderPath;
 			var assetExtension = elvisContext.activeTab.assetSelection[0].extension;
 			var assetName = elvisContext.activeTab.assetSelection[0].name;
 
-			// 1.2 Image editor
+			// 1.3 Image editor
 	    var imageEditor = new tui.ImageEditor('#tui-image-editor-container', {
 	      includeUI: {
 	        loadImage: {
@@ -100,17 +110,19 @@
 	      usageStatistics: false
 	    });
 
-	    // 1.3 Resize Image Editor by window size.
+	    // 1.4 Resize Image Editor by window size.
 	    window.onresize = function() {
 	      imageEditor.ui.resizeEditor();
 	    }
 
 	    // =============================================================================== //
+	    var loading = false;
 
 	    // 3. Save Assets filtered by Image Editor.
 	    $('.save-asset').click( function() {
 
 	    	// Optional
+	    	loading = true;
 	    	var self = $(this);
 	    	self.attr("disabled", true);
 	    	$('.preload, .preload-bg').css('display', 'inline');
@@ -136,19 +148,15 @@
 	    	var infoTimer, dropTimer;
 			  elvisApi.useAutoLogin("admin", "guest");
 
-			  // 3.4.1 Get CSRF TOKEN.
-			  if (!csrfToken) {
-          elvisApi.csrf(function(data, textStatus, jqXHR) {
-            csrfToken = data.csrfToken;
-          });
-        }
-
         // 3.4.2 Url to post data.
-        var url = "${serverUrl}/services/create?X-CSRF-TOKEN=" + csrfToken + "&metadataToReturn=all&folderPath=" + assetPath + "&name=" + fileName + "&assetType=png";
+        var url = "${serverUrl}/services/create";
         
         // 3.4.3 Create form data instance.
         var fd = new FormData(); 
         fd.append('Filedata', file);
+        fd.append('folderPath', assetPath);
+        fd.append('name', fileName);
+        fd.append('assetType', 'png');
 
         // 3.4.4 Send data file to url api service via ajax.
         $.ajax({
@@ -160,12 +168,10 @@
 			    method: 'POST',
 			    type: 'POST', // For jQuery < 1.9
 			    success: function(response){
-			    	
 			    	// Optional
+			    	loading = false;
 			    	self.attr("disabled", false);
 			    	$('.preload, .preload-bg').css('display', 'none');
-
-			      console.log('response', response);
             if (response != 0) { 
               alert('file uploaded'); 
             } 
@@ -207,6 +213,9 @@
 			<img class="preload" src="./loading.gif"> Save
 		</button>
 		<div class="preload-bg"></div>
+		<div class="alert alert-success rounded">
+			<div class="icon"> <i class="fa fa-check"></i></div> 
+			<strong>Succès!</strong> Les modifications ont été enregistrées avec succès!</div>
 		<div id="tui-image-editor-container"></div>	
 	</div>
 	
